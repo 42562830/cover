@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PAMESA STUDIO · Portada Catálogo General 2026</title>
+  <style>
+    :root{
+      --bg:#070708;
+      --panel:#0c0d0f;
+      --panel2:#0a0b0d;
+      --txt:#f2f2f2;
+      --muted:#b7b7b7;
+      --muted2:#8a8a8a;
+      --accent:#d1131b;
+      --card:#0f1012;
+      --stroke:rgba(255,255,255,.10);
+      --stroke2:rgba(255,255,255,.14);
+      --shadow:0 18px 60px rgba(0,0,0,.55);
+      --r:18px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      color:var(--txt);
+      background:
+        radial-gradient(900px 500px at 20% 10%, rgba(209,19,27,.25), transparent 55%),
+        radial-gradient(900px 500px at 85% 30%, rgba(209,19,27,.16), transparent 60%),
+        radial-gradient(1200px 900px at 50% 120%, rgba(255,255,255,.06), transparent 60%),
+        var(--bg);
+      overflow-x:hidden;
+    }
+    .wrap{
+      max-width:1240px;
+      margin:0 auto;
+      padding:28px 22px 42px;
+    }
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom:18px;
+    }
+    .brand{
+      display:flex;align-items:center;gap:10px;
+      letter-spacing:.08em;
+      font-weight:700;
+      font-size:12px;
+      text-transform:uppercase;
+      color:#eaeaea;
+      opacity:.92;
+    }
+    .dot{width:8px;height:8px;border-radius:99px;background:var(--accent); box-shadow:0 0 0 4px rgba(209,19,27,.18)}
+    .pill{
+      display:flex;align-items:center;gap:10px;
+      padding:10px 14px;
+      border:1px solid var(--stroke);
+      background:rgba(0,0,0,.25);
+      border-radius:999px;
+      box-shadow:var(--shadow);
+      color:#eaeaea;
+      font-size:12px;
+      white-space:nowrap;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap:18px;
+      align-items:stretch;
+    }
+    @media (max-width: 980px){
+      .grid{grid-template-columns:1fr}
+    }
+    .hero{
+      border:1px solid var(--stroke);
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01));
+      border-radius:var(--r);
+      padding:26px 24px 20px;
+      box-shadow:var(--shadow);
+      position:relative;
+      overflow:hidden;
+      min-height:420px;
+    }
+    .hero:before{
+      content:"";
+      position:absolute; inset:-2px;
+      background:
+        radial-gradient(420px 220px at 75% 20%, rgba(209,19,27,.40), transparent 62%),
+        radial-gradient(520px 260px at 15% 70%, rgba(255,255,255,.10), transparent 60%);
+      opacity:.55;
+      pointer-events:none;
+    }
+    .hero > *{position:relative}
+    .kicker{
+      font-size:12px;
+      letter-spacing:.18em;
+      text-transform:uppercase;
+      color:#f2f2f2;
+      opacity:.85;
+      margin-bottom:10px;
+    }
+    h1{
+      margin:0 0 12px;
+      font-size:52px;
+      line-height:1.02;
+      letter-spacing:-.03em;
+    }
+    h1 .stroke{
+      display:block;
+      font-weight:800;
+      color:transparent;
+      -webkit-text-stroke: 2px rgba(255,255,255,.35);
+      text-stroke: 2px rgba(255,255,255,.35);
+      filter: drop-shadow(0 10px 30px rgba(0,0,0,.35));
+    }
+    p{
+      margin:0;
+      font-size:15px;
+      line-height:1.6;
+      color:#e7e7e7;
+    }
+    .lead{margin-top:14px; max-width:62ch}
+    .lead strong{color:#fff}
+    .quote{
+      margin-top:16px;
+      padding-left:14px;
+      border-left:2px solid rgba(255,255,255,.20);
+      color:var(--muted);
+    }
+    .features{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+      margin-top:18px;
+    }
+    @media (max-width:560px){ .features{grid-template-columns:1fr} }
+    .f{
+      border:1px solid var(--stroke);
+      background:rgba(0,0,0,.18);
+      border-radius:14px;
+      padding:12px 12px;
+      display:flex; gap:10px;
+      align-items:flex-start;
+    }
+    .ico{
+      width:34px;height:34px;border-radius:12px;
+      display:flex;align-items:center;justify-content:center;
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+      flex:0 0 auto;
+      font-size:16px;
+    }
+    .ft h3{margin:0 0 2px;font-size:13px}
+    .ft span{display:block;color:var(--muted2);font-size:12px;line-height:1.35}
+    .ctaRow{
+      margin-top:18px;
+      display:flex; gap:12px; flex-wrap:wrap;
+    }
+    .btn{
+      border-radius:14px;
+      padding:12px 14px;
+      border:1px solid var(--stroke2);
+      background:rgba(0,0,0,.28);
+      color:#fff;
+      font-weight:700;
+      font-size:12px;
+      letter-spacing:.06em;
+      text-transform:uppercase;
+      cursor:pointer;
+      display:inline-flex; align-items:center; gap:10px;
+      text-decoration:none;
+      user-select:none;
+    }
+    .btn.primary{
+      background:linear-gradient(180deg, rgba(209,19,27,1), rgba(153,10,14,1));
+      border-color:rgba(255,255,255,.10);
+      box-shadow: 0 18px 40px rgba(209,19,27,.25);
+    }
+    .btn:active{transform:translateY(1px)}
+    .preview{
+      border:1px solid var(--stroke);
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      border-radius:var(--r);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+      min-height:420px;
+      display:flex;
+      flex-direction:column;
+    }
+    .previewHeader{
+      padding:14px 14px 12px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      background:rgba(0,0,0,.18);
+    }
+    .phTitle{
+      font-weight:800;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      font-size:12px;
+      display:flex; align-items:center; gap:10px;
+    }
+    .phSub{
+      color:var(--muted2);
+      font-size:12px;
+      text-align:right;
+      line-height:1.25;
+    }
+    .switch{
+      display:flex;
+      gap:8px;
+      padding:0;
+      margin:0;
+      list-style:none;
+      align-items:center;
+    }
+    .chip{
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(0,0,0,.26);
+      color:#fff;
+      border-radius:999px;
+      padding:7px 10px;
+      font-size:12px;
+      font-weight:800;
+      cursor:pointer;
+      display:flex; align-items:center; gap:8px;
+      user-select:none;
+    }
+    .chip .n{
+      width:22px;height:22px;border-radius:999px;
+      display:flex;align-items:center;justify-content:center;
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+      font-size:11px;
+    }
+    .chip.active{
+      border-color:rgba(209,19,27,.55);
+      box-shadow: 0 12px 30px rgba(209,19,27,.18);
+    }
+    .chip.active .n{background:rgba(209,19,27,.22); border-color:rgba(209,19,27,.45)}
+    .viewerWrap{
+      position:relative;
+      flex:1;
+      min-height:520px; /* clave: aquí damos “aire” para que se vea como en la app */
+      background:#000;
+    }
+    @media (max-width:980px){
+      .viewerWrap{min-height:560px;}
+    }
+    .viewer{
+      position:absolute; inset:0;
+      width:100%; height:100%;
+      border:0;
+      background:#000;
+    }
+    .hint{
+      position:absolute;
+      left:14px; bottom:14px;
+      display:flex; align-items:center; gap:10px;
+      padding:10px 12px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(0,0,0,.35);
+      color:#eaeaea;
+      font-size:12px;
+      pointer-events:none;
+      backdrop-filter: blur(6px);
+    }
+    .mouse{
+      width:18px;height:18px;border-radius:6px;border:1px solid rgba(255,255,255,.18);
+      position:relative;
+    }
+    .mouse:before{
+      content:""; position:absolute; left:50%; top:3px; transform:translateX(-50%);
+      width:2px;height:6px;background:rgba(255,255,255,.45); border-radius:2px;
+    }
+    .footerNote{
+      margin-top:14px;
+      color:rgba(255,255,255,.55);
+      font-size:12px;
+      line-height:1.4;
+    }
+    .footerNote code{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size:11px;
+      color:rgba(255,255,255,.78);
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+      padding:2px 6px;
+      border-radius:8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="dot"></span> PAMESA STUDIO</div>
+      <div class="pill"><span class="dot" style="width:6px;height:6px;box-shadow:none"></span> Preview interactiva · v3.6</div>
+    </div>
+
+    <div class="grid" id="top">
+      <section class="hero">
+        <div class="kicker">Catálogo General 2026</div>
+        <h1>LA PORTADA <span class="stroke">BAJO NUESTRO CONTROL</span></h1>
+        <p class="lead">
+          Este año nos vuelve a pasar lo de siempre: <strong>las propuestas de imprenta no encajan</strong> y se nos va el tiempo en vueltas, ajustes y “ya veremos”.
+        </p>
+        <p class="quote">
+          Generar 100 portadas “con IA” tampoco arregla nada si el resultado es genérico, no respeta materiales reales y no nos deja decidir con criterio.
+          <br><br>
+          La solución no es “más imágenes”. Es <strong>más control</strong>: iterar rápido con nuestros acabados (tinta blanca, UV, stamping) y ver el resultado en <strong>3D</strong> como quedará impreso.
+        </p>
+
+        <div class="features">
+          <div class="f"><div class="ico">🧠</div><div class="ft"><h3>Control humano</h3><span>La IA ayuda, pero la decisión es nuestra.</span></div></div>
+          <div class="f"><div class="ico">🧱</div><div class="ft"><h3>Papel tela real</h3><span>Textura comprada integrada como fondo fijo.</span></div></div>
+          <div class="f"><div class="ico">✨</div><div class="ft"><h3>Acabados de imprenta</h3><span>Tinta blanca, UV brillo, golpe seco, oro/plata.</span></div></div>
+          <div class="f"><div class="ico">⚡</div><div class="ft"><h3>Iteración ultra rápida</h3><span>3 plantillas base + assets PNG/SVG.</span></div></div>
+        </div>
+
+        <div class="ctaRow">
+          <a class="btn primary" id="openTool" href="PAMESA_STUDIO_V3_6_PNG_DECOS_WHITEINK_LAYERS_PLUS_TEMPLATE3.html" target="_blank" rel="noopener">Abrir herramienta →</a>
+          <button class="btn" id="goPreview">Ver la preview 3D ↓</button>
+        </div>
+
+        <div class="footerNote">
+          Para que funcione en local: abrir desde <code>http://localhost:8000</code> (no <code>file://</code>).
+        </div>
+      </section>
+
+      <section class="preview" id="previews">
+        <div class="previewHeader">
+          <div>
+            <div class="phTitle">3 propuestas · 3D en vivo</div>
+            <ul class="switch" id="switch">
+              <li><button class="chip active" data-tpl="1" data-name="Plantilla 01"><span class="n">01</span> Plantilla 01</button></li>
+              <li><button class="chip" data-tpl="2" data-name="Plantilla 02"><span class="n">02</span> Plantilla 02</button></li>
+              <li><button class="chip" data-tpl="3" data-name="Plantilla 03"><span class="n">03</span> Plantilla 03</button></li>
+            </ul>
+          </div>
+          <div class="phSub" id="phSub">
+            Arrastra para girar · rueda para zoom<br/>Modo “solo vista”: sin edición
+          </div>
+        </div>
+
+        <div class="viewerWrap">
+          <iframe class="viewer" id="viewer" title="Preview 3D (solo vista)"></iframe>
+          <div class="hint"><span class="mouse"></span> Arrastra para girar · rueda para zoom</div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    // Ajusta aquí si renombráis archivos
+    const VIEWER_HTML = "PAMESA_STUDIO_V3_6_VIEWER.html";
+    const EDITOR_HTML = "PAMESA_STUDIO_V3_6_PNG_DECOS_WHITEINK_LAYERS_PLUS_TEMPLATE3.html";
+
+    const viewer = document.getElementById('viewer');
+    const switchEl = document.getElementById('switch');
+    const openTool = document.getElementById('openTool');
+    const goPreview = document.getElementById('goPreview');
+
+    openTool.href = EDITOR_HTML;
+
+    function setActiveTpl(tpl){
+      // Marca chip activo
+      [...switchEl.querySelectorAll('.chip')].forEach(b => b.classList.toggle('active', b.dataset.tpl === String(tpl)));
+
+      // Carga la herramienta en modo presentación (solo vista) + plantilla
+      // Nota: usamos iframe único grande para que se vea IGUAL que en la app.
+      const url = `${VIEWER_HTML}?landing=1&fit=0&tpl=${encodeURIComponent(String(tpl))}`;
+      viewer.src = url;
+    }
+
+    switchEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('.chip');
+      if(!btn) return;
+      setActiveTpl(btn.dataset.tpl);
+    });
+
+    goPreview.addEventListener('click', () => {
+      document.getElementById('previews').scrollIntoView({behavior:'smooth', block:'start'});
+    });
+
+    // Carga inicial
+    setActiveTpl(1);
+  </script>
+</body>
+</html>
