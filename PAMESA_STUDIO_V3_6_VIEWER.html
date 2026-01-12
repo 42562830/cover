@@ -355,6 +355,42 @@
         .lib-title{ font-size:11px; color:#ddd; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .lib-sub{ font-size:9px; color:#777; letter-spacing:0.5px; text-transform:uppercase; }
 
+        /* Panel de capas */
+        #layerPanel{ display:flex; flex-direction:column; gap:6px; }
+        .layer-item{
+            display:flex; align-items:center; gap:8px;
+            padding:8px 10px;
+            background:#181818;
+            border:1px solid #333;
+            border-radius:2px;
+            cursor:pointer;
+            transition: border-color 0.2s, transform 0.06s;
+        }
+        .layer-item:hover{ border-color:#555; }
+        .layer-item:active{ transform: translateY(1px); }
+        .layer-item.active{ border-color: var(--accent); }
+        .layer-title{ flex:1; min-width:0; font-size:11px; color:#ddd; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .layer-sub{ font-size:9px; color:#777; letter-spacing:0.5px; text-transform:uppercase; }
+        .layer-actions{ display:flex; gap:6px; }
+        .layer-btn{
+            width:22px; height:22px;
+            display:flex; align-items:center; justify-content:center;
+            border:1px solid #333; background:#111; color:#aaa;
+            border-radius:2px; cursor:pointer; font-size:11px; padding:0; margin:0;
+        }
+        .layer-btn:hover{ border-color:#555; color:#fff; background:#141414; }
+        .layer-name-input{
+            width: 100%;
+            background:#000;
+            border:1px solid #333;
+            color:#fff;
+            padding:6px 8px;
+            font-size:11px;
+            border-radius:2px;
+            outline:none;
+        }
+
+
         /* Export menu (PNG/JPG) */
         .export-menu{
             position:absolute; bottom: 75px; left: 50%; transform: translateX(-50%);
@@ -402,6 +438,17 @@
     <!-- UI IZQUIERDA -->
     <aside>
         <h1>PAMESA <span>STUDIO</span></h1>
+
+        <div id="autosaveBar" class="hidden" style="margin:-10px 0 18px 0; padding:10px; border:1px solid #333; background:#0b0b0b; border-radius:2px;">
+            <div style="font-size:10px; color:#bbb; line-height:1.3; margin-bottom:8px;">
+                Hay un <b>borrador auto-guardado</b> en este navegador.
+            </div>
+            <div class="row">
+                <button class="action-btn primary" style="margin:0;" onclick="App.restoreAutosave()">Restaurar</button>
+                <button class="action-btn" style="margin:0;" onclick="App.discardAutosave()">Descartar</button>
+            </div>
+        </div>
+
         
         <div class="section-title">Archivo</div>
         <div class="row">
@@ -490,7 +537,8 @@
         </div>
 
         <div class="hud">
-            <button class="hud-btn" onclick="History.undo()" title="Deshacer">↺</button>
+            <button class="hud-btn" onclick="History.undo()" title="Deshacer (Ctrl/Cmd+Z)">↺</button>
+            <button class="hud-btn" onclick="History.redo()" title="Rehacer (Ctrl+Y / Ctrl+Shift+Z)">↻</button>
             <div style="width:1px; background:#333;"></div>
             <button class="hud-btn" onclick="App.toggle3D()" id="btn3D" title="3D View">🧊</button>
             <button class="hud-btn snap-only" onclick="App.resetView3D()" title="Reset vista 3D">⟲</button>
@@ -514,6 +562,15 @@
     <!-- UI DERECHA -->
     <aside class="right" id="inspector">
         <div class="section-title">Propiedades</div>
+
+        <div class="section-title">Capas (superficie)</div>
+        <div id="layerPanel"></div>
+
+        <div class="row" style="margin-top:10px;">
+            <button class="action-btn" onclick="App.groupSelected()">Agrupar</button>
+            <button class="action-btn" onclick="App.ungroupSelected()">Desagrupar</button>
+        </div>
+
 
         <div id="noSel" style="text-align:center; padding:60px 0; color:#444;">
             <div style="font-size:20px; margin-bottom:10px;">✏️</div>
@@ -627,6 +684,10 @@ const State = {
   backEls: [],
   activeSurface: 'front', // front | spine | back
   selId: null,
+  selIds: [],
+  redo: [],
+  _histTimer: null,
+  autosaveKey: 'pamesa_studio_v36_autosave',
 
   history: [],
   is3D: false,
@@ -656,6 +717,8 @@ const DOM = {
   layersBack: document.getElementById('layersBack'),
   libraryList: document.getElementById('libraryList'),
   presetList: document.getElementById('presetList'),
+  layerPanel: document.getElementById('layerPanel'),
+  autosaveBar: document.getElementById('autosaveBar'),
   exportMenu: document.getElementById('exportMenu'),
   btnExport: document.getElementById('btnExport'),
   controls: document.getElementById('controls'),
@@ -698,26 +761,61 @@ const deepClone = (x) => JSON.parse(JSON.stringify(x));
 
 // ---------- HISTORY ----------
 const History = {
+  _snapshot: () => JSON.stringify({
+    frontEls: State.frontEls,
+    spineEls: State.spineEls,
+    backEls: State.backEls,
+    activeSurface: State.activeSurface,
+    bgColor: (document.getElementById('bgPicker') && document.getElementById('bgPicker').value) || '#cf1f29',
+    bgTexturePath: State.bgTexturePath
+  }),
   push: () => {
-    const snap = JSON.stringify({
-      frontEls: State.frontEls,
-      spineEls: State.spineEls,
-      backEls: State.backEls,
-      activeSurface: State.activeSurface
-    });
+    const snap = History._snapshot();
     if (State.history[State.history.length - 1] !== snap) {
       State.history.push(snap);
-      if (State.history.length > 30) State.history.shift();
+      // Cualquier cambio nuevo invalida el redo
+      State.redo = [];
+      if (State.history.length > 60) State.history.shift();
     }
   },
   undo: () => {
     if (State.history.length <= 1) return;
+    // Guarda el estado actual para redo
+    const current = State.history[State.history.length - 1];
+    State.redo.push(current);
+    if (State.redo.length > 60) State.redo.shift();
+
     State.history.pop();
-    const prev = JSON.parse(State.history[State.history.length - 1]);
+    const prev = JSON.parse(State.history[State.history.length - 1] || '{}');
+
     State.frontEls = prev.frontEls || [];
     State.spineEls = prev.spineEls || [];
     State.backEls = prev.backEls || [];
     State.activeSurface = prev.activeSurface || 'front';
+
+    if (prev.bgColor) App.setBookColor(prev.bgColor);
+    if (prev.bgTexturePath) App.setBgTexturePath(prev.bgTexturePath);
+
+    App.deselect();
+    App.renderAll();
+    App.updateSurfaceUI();
+  },
+  redo: () => {
+    if (!State.redo.length) return;
+    const snap = State.redo.pop();
+    if (!snap) return;
+
+    State.history.push(snap);
+    const next = JSON.parse(snap || '{}');
+
+    State.frontEls = next.frontEls || [];
+    State.spineEls = next.spineEls || [];
+    State.backEls = next.backEls || [];
+    State.activeSurface = next.activeSurface || 'front';
+
+    if (next.bgColor) App.setBookColor(next.bgColor);
+    if (next.bgTexturePath) App.setBgTexturePath(next.bgTexturePath);
+
     App.deselect();
     App.renderAll();
     App.updateSurfaceUI();
@@ -725,6 +823,7 @@ const History = {
 };
 
 // ---------- APP ----------
+
 const App = {
   init: async () => {
     // Cargar logo real si existe junto al HTML
@@ -773,13 +872,20 @@ const App = {
         if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) { e.preventDefault(); App.pasteFromClipboard(); return; }
         if ((e.ctrlKey || e.metaKey) && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); App.duplicateSel(); return; }
         if (e.key === 'Delete') { App.deleteSelected(); return; }
-        if (e.key === 'z' && (e.ctrlKey || e.metaKey)) { History.undo(); return; }
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z') && e.shiftKey) { e.preventDefault(); History.redo(); return; }
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) { e.preventDefault(); History.redo(); return; }
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); History.undo(); return; }
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'g' || e.key === 'G') && !e.shiftKey) { e.preventDefault(); App.groupSelected(); return; }
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'g' || e.key === 'G') && e.shiftKey) { e.preventDefault(); App.ungroupSelected(); return; }
       }
 
       if (e.key === 'Escape') document.body.classList.remove('presentation-mode');
     });
 
     window.addEventListener('resize', () => App.updateCanvasDims());
+
+    // Banner de autosave (si existe)
+    App._checkAutosaveBanner();
 
     // IMPORTANT: historial inicial
     History.push();
@@ -841,6 +947,146 @@ const App = {
       if (g?.h) g.h.style.display = 'none';
     });
   },
+
+  // -------- capas / grupos --------
+  groupSelected: () => {
+    const ids = App.getSelectedIds();
+    if (ids.length < 2) return;
+    const list = App.getList(State.activeSurface);
+    const gid = 'g_' + Date.now();
+    ids.forEach((id) => {
+      const el = list.find(e => e.id === id);
+      if (el) el.groupId = gid;
+    });
+    App.renderAll();
+    App.renderLayerPanel();
+    App.save('commit');
+  },
+
+  ungroupSelected: () => {
+    const ids = App.getSelectedIds();
+    if (!ids.length) return;
+    const list = App.getList(State.activeSurface);
+    // si el principal tiene groupId, quítalo a todo el grupo
+    const primary = list.find(e => e.id === State.selId);
+    const gid = primary && primary.groupId;
+    if (gid) {
+      list.filter(e => e.groupId === gid).forEach(e => { delete e.groupId; });
+    } else {
+      ids.forEach((id) => {
+        const el = list.find(e => e.id === id);
+        if (el) delete el.groupId;
+      });
+    }
+    App.renderAll();
+    App.renderLayerPanel();
+    App.save('commit');
+  },
+
+  renderLayerPanel: () => {
+    if (!DOM.layerPanel) return;
+    const list = App.getList(State.activeSurface) || [];
+    if (!list.length) {
+      DOM.layerPanel.innerHTML = '<div style="color:#666; font-size:10px;">(Sin elementos)</div>';
+      return;
+    }
+
+    // Top (último) arriba
+    const ordered = list.slice().reverse();
+
+    DOM.layerPanel.innerHTML = '';
+    ordered.forEach((el) => {
+      const row = document.createElement('div');
+      row.className = 'layer-item' + (App.isSelectedId(el.id) ? ' active' : '');
+      row.title = 'Shift+click para multi-selección';
+
+      // label
+      const title = document.createElement('div');
+      title.style.display = 'flex';
+      title.style.flexDirection = 'column';
+      title.style.gap = '2px';
+
+      const t = document.createElement('div');
+      t.className = 'layer-title';
+      const baseName = el.name || (el.type === 'text' ? (String(el.text || '').split('\n')[0] || 'Texto') :
+                     (el.type === 'svg' ? 'SVG' : (el.type === 'img' ? (el.src || 'PNG') : 'Elemento')));
+      const groupTag = el.groupId ? ' · grupo' : '';
+      t.textContent = baseName + groupTag;
+      title.appendChild(t);
+
+      const sub = document.createElement('div');
+      sub.className = 'layer-sub';
+      sub.textContent = el.type;
+      title.appendChild(sub);
+
+      // acciones
+      const actions = document.createElement('div');
+      actions.className = 'layer-actions';
+
+      const btnHide = document.createElement('button');
+      btnHide.className = 'layer-btn';
+      btnHide.type = 'button';
+      btnHide.title = el.hidden ? 'Mostrar' : 'Ocultar';
+      btnHide.textContent = el.hidden ? '🙈' : '👁';
+      btnHide.onclick = (ev) => {
+        ev.stopPropagation();
+        el.hidden = !el.hidden;
+        App.renderAll();
+        App.renderLayerPanel();
+        App.save('commit');
+      };
+
+      const btnLock = document.createElement('button');
+      btnLock.className = 'layer-btn';
+      btnLock.type = 'button';
+      btnLock.title = el.locked ? 'Desbloquear' : 'Bloquear';
+      btnLock.textContent = el.locked ? '🔒' : '🔓';
+      btnLock.onclick = (ev) => {
+        ev.stopPropagation();
+        el.locked = !el.locked;
+        App.renderAll();
+        App.renderLayerPanel();
+        App.save('commit');
+      };
+
+      actions.appendChild(btnHide);
+      actions.appendChild(btnLock);
+
+      // Renombrar: doble click en el título
+      t.ondblclick = (ev) => {
+        ev.stopPropagation();
+        const inp = document.createElement('input');
+        inp.className = 'layer-name-input';
+        inp.value = el.name || baseName;
+        // reemplaza el nodo
+        title.replaceChild(inp, t);
+        inp.focus();
+        inp.select();
+
+        const commit = () => {
+          el.name = inp.value.trim() || baseName;
+          App.renderLayerPanel();
+          App.save('commit');
+        };
+        inp.onkeydown = (ke) => {
+          if (ke.key === 'Enter') { ke.preventDefault(); commit(); }
+          if (ke.key === 'Escape') { ke.preventDefault(); App.renderLayerPanel(); }
+        };
+        inp.onblur = () => commit();
+      };
+
+      row.appendChild(title);
+      row.appendChild(actions);
+
+      row.onclick = (ev) => {
+        // selecciona (shift para multi)
+        App.select(el.id, { multi: ev.shiftKey });
+      };
+
+      DOM.layerPanel.appendChild(row);
+    });
+  },
+
 
   updateCanvasDims: () => {
     let el = DOM.cover;
@@ -1016,7 +1262,9 @@ const App = {
       div.dataset.elid = String(el.id);
       div.dataset.surface = surface;
       div.className = `element ${el.mat || 'mat-ink'}`;
-      if (State.selId === el.id && State.activeSurface === surface) div.classList.add('selected');
+      if (State.activeSurface === surface && App.isSelectedId(el.id)) div.classList.add('selected');
+      if (el.hidden) div.style.display = 'none';
+      if (el.locked) { div.style.cursor = 'default'; }
 
       div.style.left = (el.x ?? 50) + '%';
       div.style.top = (el.y ?? 50) + '%';
@@ -1116,13 +1364,20 @@ const App = {
 
       div.onmousedown = (e) => {
         e.stopPropagation();
+
         if (State.activeSurface !== surface) {
           State.activeSurface = surface;
           App.updateSurfaceUI();
           App.deselect();
           App.updateCanvasDims();
         }
-        App.select(el.id);
+
+        // Shift = multi-select toggle
+        App.select(el.id, { multi: e.shiftKey });
+
+        // Si está bloqueado, permite seleccionar pero no arrastrar
+        if (el.locked) return;
+
         App.dragStart(e, el.id, surface);
       };
 
@@ -1134,20 +1389,58 @@ const App = {
     App.renderSurface('front', DOM.layersFront);
     App.renderSurface('spine', DOM.layersSpine);
     App.renderSurface('back', DOM.layersBack);
+    App.renderLayerPanel();
   },
 
   // -------- selection --------
   findActiveEl: () => App.getList(State.activeSurface).find(e => e.id === State.selId),
 
-  select: (id) => {
-    State.selId = id;
-    App.renderAll();
+  // -------- selección múltiple --------
+  getSelectedIds: () => {
+    const ids = Array.isArray(State.selIds) ? State.selIds : [];
+    if (ids.length) return ids.slice();
+    return State.selId != null ? [State.selId] : [];
+  },
+  isSelectedId: (id) => App.getSelectedIds().includes(id),
 
+
+  select: (id, opts = {}) => {
+    const multi = !!opts.multi;
+    const toggle = (opts.toggle !== undefined) ? !!opts.toggle : multi;
+
+    const list = App.getList(State.activeSurface);
+    const clicked = list.find(e => e.id === id);
+
+    // Si no es multi, y el elemento pertenece a un grupo, selecciona el grupo completo
+    if (!multi && clicked && clicked.groupId) {
+      const groupIds = list.filter(e => e.groupId === clicked.groupId).map(e => e.id);
+      State.selIds = groupIds;
+      State.selId = id;
+    } else if (multi) {
+      const ids = new Set(App.getSelectedIds());
+      if (toggle) {
+        if (ids.has(id)) ids.delete(id);
+        else ids.add(id);
+      } else {
+        ids.add(id);
+      }
+      State.selIds = Array.from(ids);
+      // SelId principal: el último clicado si sigue existiendo, si no, el primero
+      State.selId = State.selIds.includes(id) ? id : (State.selIds[0] ?? null);
+    } else {
+      State.selIds = [id];
+      State.selId = id;
+    }
+
+    App.renderAll();
+    App.renderLayerPanel();
+
+    // Inspector: si hay multi-selección, muestra el elemento principal (selId)
     DOM.noSel.classList.add('hidden');
     DOM.controls.classList.remove('hidden');
 
     const el = App.findActiveEl();
-    if (!el) return;
+    if (!el) { App.deselect(); return; }
 
     DOM.inputs.mat.value = el.mat || 'mat-ink';
     DOM.inputs.size.value = el.size || 24;
@@ -1155,20 +1448,22 @@ const App = {
     DOM.inputs.rot.value = el.rot || 0;
 
     if (el.type === 'text') {
-      document.getElementById('textOnly').classList.remove('hidden');
+      document.getElementById('textOnly').style.display = 'block';
       DOM.inputs.text.value = el.text || '';
       DOM.inputs.font.value = el.font || NIMBUS;
-      DOM.inputs.weight.value = el.weight || 400;
+      DOM.inputs.weight.value = el.weight || 500;
       DOM.inputs.space.value = el.space || 0;
       DOM.inputs.italic.checked = !!el.italic;
     } else {
-      document.getElementById('textOnly').classList.add('hidden');
+      document.getElementById('textOnly').style.display = 'none';
     }
   },
 
   deselect: () => {
     State.selId = null;
+    State.selIds = [];
     App.renderAll();
+    App.renderLayerPanel();
     DOM.noSel.classList.remove('hidden');
     DOM.controls.classList.add('hidden');
   },
@@ -1185,10 +1480,73 @@ const App = {
     if (prop === 'size') document.getElementById('lblSize').innerText = val;
     App.renderAll();
     requestAnimationFrame(() => App.clampToSafe(State.activeSurface, el.id));
-    App.save();
+    const continuous = ['size','rot','weight','space','text'];
+    App.save(continuous.includes(prop) ? 'debounce' : 'commit');
   },
 
-  save: () => History.push(),
+  // Guarda en historial (commit inmediato) o en modo debounced (para sliders/typing)
+  save: (mode = 'commit') => {
+    if (mode === 'debounce') return App._debouncedHistory();
+    return App._commitHistory();
+  },
+  _commitHistory: () => {
+    clearTimeout(State._histTimer);
+    State._histTimer = null;
+    History.push();
+    App._autosaveNow();
+  },
+  _debouncedHistory: () => {
+    clearTimeout(State._histTimer);
+    State._histTimer = setTimeout(() => {
+      App._commitHistory();
+    }, 250);
+  },
+
+  // -------- autosave (local) --------
+  _autosaveNow: () => {
+    try {
+      const payload = App._buildProjectPayload();
+      const pack = { savedAt: Date.now(), project: payload };
+      localStorage.setItem(State.autosaveKey, JSON.stringify(pack));
+      if (DOM.autosaveBar) DOM.autosaveBar.classList.add('hidden'); // ya está guardado, no hace falta banner
+    } catch (_) {}
+  },
+  _buildProjectPayload: () => {
+    return {
+      version: "3.6",
+      timestamp: Date.now(),
+      bgColor: (document.getElementById('bgPicker') && document.getElementById('bgPicker').value) || '#cf1f29',
+      bgTexture: State.bgTexturePath,
+      elementsFront: State.frontEls,
+      elementsSpine: State.spineEls,
+      elementsBack: State.backEls,
+      elements: State.frontEls // compat
+    };
+  },
+  _checkAutosaveBanner: () => {
+    try {
+      const raw = localStorage.getItem(State.autosaveKey);
+      if (!raw) return;
+      const pack = JSON.parse(raw);
+      if (!pack || !pack.project) return;
+      if (DOM.autosaveBar) DOM.autosaveBar.classList.remove('hidden');
+    } catch (_) {}
+  },
+  restoreAutosave: () => {
+    try {
+      const raw = localStorage.getItem(State.autosaveKey);
+      if (!raw) return;
+      const pack = JSON.parse(raw);
+      if (!pack || !pack.project) return;
+      App.applyProject(pack.project, { keepSurfaces: false });
+      App.showDefault3D();
+      if (DOM.autosaveBar) DOM.autosaveBar.classList.add('hidden');
+    } catch (_) {}
+  },
+  discardAutosave: () => {
+    try { localStorage.removeItem(State.autosaveKey); } catch (_) {}
+    if (DOM.autosaveBar) DOM.autosaveBar.classList.add('hidden');
+  },
 
   // -------- edit --------
   addText: () => {
@@ -1332,7 +1690,9 @@ const App = {
   },
 
   loadProject: (input) => {
-    if (!input.files[0]) return;
+    const f = input.files && input.files[0];
+    if (!f) return;
+    const filename = f.name || '';
     const r = new FileReader();
     r.onload = (e) => {
       let data;
@@ -1343,9 +1703,13 @@ const App = {
         App.loadLibrary(data);
       } else {
         App.applyProject(data, { keepSurfaces: false });
+        // Requisito: si cargamos un JSON suelto, que aparezca en galería con miniatura + descripción
+        App.addProjectToGallery(data, filename);
       }
+      // Guarda un borrador tras cargar
+      App._autosaveNow();
     };
-    r.readAsText(input.files[0]);
+    r.readAsText(f);
     input.value = '';
   },
 
@@ -1556,6 +1920,26 @@ const App = {
   },
 
 
+
+  addProjectToGallery: (proj, filename = '') => {
+    const p = (proj && proj.project) ? proj.project : proj;
+    if (!p) return;
+
+    if (!State.library || typeof State.library !== 'object') State.library = {};
+    if (!Array.isArray(State.library.projects)) State.library.projects = [];
+    if (!State.library.assets) State.library.assets = State.library.assets || {};
+
+    const name = (p.name || p.title || filename || `Propuesta ${State.library.projects.length + 1}`);
+    const description = (p.description || p.desc || p.subtitle || '');
+
+    // Evita duplicados exactos por nombre+timestamp si se recarga el mismo archivo varias veces
+    const exists = State.library.projects.some(it => (it.name || it.title) === name && (it.project && it.project.timestamp) === p.timestamp);
+    if (!exists) {
+      State.library.projects.unshift({ name, description, project: p });
+    }
+    App.loadLibrary(State.library);
+  },
+
   loadLibrary: (lib) => {
     State.library = lib;
     if (!DOM.libraryList) return;
@@ -1569,6 +1953,7 @@ const App = {
     list.forEach((item, i) => {
       const proj = item.project || item;
       const label = item.name || item.title || `Propuesta ${i + 1}`;
+      const desc = item.description || item.desc || proj.description || proj.desc || '';
 
       const row = document.createElement('div');
       row.className = 'lib-item';
@@ -1577,7 +1962,7 @@ const App = {
 
       const meta = document.createElement('div');
       meta.className = 'lib-meta';
-      meta.innerHTML = `<div class="lib-title">${String(i + 1).padStart(2, '0')} | ${label}</div><div class="lib-sub">projects[]</div>`;
+      meta.innerHTML = `<div class="lib-title">${String(i + 1).padStart(2, '0')} | ${label}</div><div class="lib-sub">${desc ? desc : 'projects[]'}</div>`;
       row.appendChild(meta);
 
       row.onclick = () => {
@@ -1593,48 +1978,75 @@ const App = {
   // -------- drag --------
   dragStart: (e, id, surface) => {
     const list = App.getList(surface);
-    const el = list.find(i => i.id === id);
-    if (!el) return;
+
+    // Si el id no está en selección actual (p.ej. clic normal sobre un elemento no seleccionado),
+    // asegúrate de que solo se mueve ese elemento.
+    const selectedIds = App.getSelectedIds().filter(sid => {
+      const el = list.find(x => x.id === sid);
+      return !!el && !el.hidden;
+    });
+
+    const moveIds = (selectedIds.includes(id) && selectedIds.length) ? selectedIds : [id];
+
+    // Elemento "primario" para snaps/guías
+    const primary = list.find(i => i.id === id) || list.find(i => i.id === moveIds[0]);
+    if (!primary) return;
 
     const startX = e.clientX;
     const startY = e.clientY;
-    const origX = el.x ?? 50;
-    const origY = el.y ?? 50;
+
+    const starts = moveIds.map((sid) => {
+      const el = list.find(x => x.id === sid);
+      if (!el || el.locked) return null;
+      return { id: sid, el, ox: (el.x ?? 50), oy: (el.y ?? 50) };
+    }).filter(Boolean);
+
+    const primaryStart = starts.find(s => s.id === (primary.id)) || starts[0];
+    if (!primaryStart) return;
 
     const onMove = (ev) => {
       const dx = (ev.clientX - startX) / State.canvasW * 100;
       const dy = (ev.clientY - startY) / State.canvasH * 100;
-      let nx = origX + dx;
-      let ny = origY + dy;
 
-      {
-        const g = (surface === 'front') ? DOM.guides : (surface === 'spine' ? DOM.guidesSpine : DOM.guidesBack);
+      // Nuevo punto del primario
+      let nx = primaryStart.ox + dx;
+      let ny = primaryStart.oy + dy;
+
+      // Snaps 3D/front como original (solo para portada)
+      if (State.is3D) {
+        const g = surface === 'front' ? DOM.guides : (surface === 'spine' ? DOM.guidesSpine : DOM.guidesBack);
         if (g?.v && g?.h) {
           g.v.style.display = 'none';
           g.h.style.display = 'none';
           if (Math.abs(nx - 50) < 1) { nx = 50; g.v.style.display = 'block'; }
           if (Math.abs(ny - 50) < 1) { ny = 50; g.h.style.display = 'block'; }
         }
-        // Márgenes “cómodos” como en portada
         if (Math.abs(nx - 12) < 1) nx = 12;
         if (Math.abs(nx - 88) < 1) nx = 88;
       }
 
-      el.x = nx; el.y = ny;
+      // Delta real aplicado al resto
+      const ddx = nx - primaryStart.ox;
+      const ddy = ny - primaryStart.oy;
 
-      const div = document.getElementById(`${surface}__${id}`);
-      if (div) { div.style.left = nx + '%'; div.style.top = ny + '%'; }
-      App.clampToSafe(surface, id);
+      starts.forEach((s) => {
+        s.el.x = s.ox + ddx;
+        s.el.y = s.oy + ddy;
+
+        const div = document.getElementById(`${surface}__${s.id}`);
+        if (div) { div.style.left = s.el.x + '%'; div.style.top = s.el.y + '%'; }
+        App.clampToSafe(surface, s.id);
+      });
     };
 
     const onUp = () => {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
       [DOM.guides, DOM.guidesSpine, DOM.guidesBack].forEach((g) => {
-      if (g?.v) g.v.style.display = 'none';
-      if (g?.h) g.h.style.display = 'none';
-    });
-      App.save();
+        if (g?.v) g.v.style.display = 'none';
+        if (g?.h) g.h.style.display = 'none';
+      });
+      App.save('commit');
     };
 
     document.addEventListener('mousemove', onMove);
